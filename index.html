@@ -1,232 +1,1971 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forest Foragers - 2D Multiplayer Survival</title>
+
+    <title>Forest Foragers - Single-Player Adventure</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
+
         body {
+
             font-family: 'Press Start 2P', cursive;
+
             background-color: #382b22;
+
             color: #ffffff;
+
             overflow: hidden;
+
             image-rendering: pixelated;
+
         }
+
         canvas {
+
             position: absolute;
+
             top: 0;
+
             left: 0;
+
             width: 100vw;
+
             height: 100vh;
-            background-color: #5d9254;
+
+            /* The background is now drawn in the render loop */
+
         }
-        .ui-container {
+
+        #minimap-canvas {
+
             position: absolute;
-            bottom: 10px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            gap: 20px;
-            z-index: 10;
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
-        .ui-panel {
-            background-color: rgba(0, 0, 0, 0.6);
+
+            top: 1rem;
+
+            left: 1rem;
+
+            width: 200px;
+
+            height: 200px;
+
             border: 4px solid #5a4f49;
+
             box-shadow: 0 0 0 4px #2b211c;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+
+            z-index: 10;
+
         }
-        #crafting-panel { flex-shrink: 0; }
+
+        .ui-container {
+
+            position: absolute;
+
+            bottom: 10px;
+
+            width: 100%;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: flex-end;
+
+            gap: 20px;
+
+            z-index: 10;
+
+            padding: 0 20px;
+
+            box-sizing: border-box;
+
+        }
+
+        .ui-panel {
+
+            background-color: rgba(0, 0, 0, 0.6);
+
+            border: 4px solid #5a4f49;
+
+            box-shadow: 0 0 0 4px #2b211c;
+
+            padding: 10px;
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+        }
+
+        #crafting-inventory-panel { flex-shrink: 0; }
+
         #hotbar-panel { flex-grow: 0; flex-shrink: 0; }
-        #chat-panel { flex-grow: 1; min-width: 200px; max-width: 350px; }
 
         .ui-panel h3 {
+
             font-size: 12px;
+
             margin-bottom: 8px;
+
             color: #f5f5f5;
+
             text-align: center;
+
         }
+
         .inventory-grid, .hotbar-grid, .crafting-grid { display: grid; gap: 4px; }
+
         .crafting-area { display: flex; align-items: center; gap: 10px; }
-        .crafting-grid { grid-template-columns: repeat(2, 40px); grid-template-rows: repeat(2, 40px); }
+
+        .crafting-grid { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); }
+
         .hotbar-grid { grid-template-columns: repeat(9, 40px); }
+
         .inventory-slot {
+
             width: 40px; height: 40px; background-color: rgba(255, 255, 255, 0.1);
+
             border: 2px solid #3b322d; display: flex; align-items: center;
+
             justify-content: center; font-size: 24px; cursor: pointer; position: relative;
+
         }
+
         .inventory-slot.selected { border-color: #ffd700; box-shadow: 0 0 5px #ffd700; }
+
         .inventory-slot:hover { background-color: rgba(255, 255, 255, 0.2); }
+
         .item-count { position: absolute; bottom: 2px; right: 2px; font-size: 10px; color: white; text-shadow: 1px 1px 1px black; }
+
         .crafting-arrow { font-size: 24px; }
-        .chat-container { width: 100%; height: 150px; display: flex; flex-direction: column; }
-        #chat-messages { flex-grow: 1; overflow-y: auto; font-size: 10px; padding: 5px; background-color: rgba(0, 0, 0, 0.3); margin-bottom: 5px; line-height: 1.4; }
-        #chat-input { width: 100%; background-color: rgba(0, 0, 0, 0.5); border: 2px solid #5a4f49; color: white; padding: 5px; font-size: 10px; }
-        #name-container { position: absolute; top: 10px; left: 10px; z-index: 10; display: flex; align-items: center; gap: 10px; }
-        #name-input, #set-name-btn { background-color: rgba(0, 0, 0, 0.5); border: 2px solid #5a4f49; padding: 5px; color: white; font-size: 10px; }
-        #set-name-btn { cursor: pointer; }
-        #user-id-display { position: absolute; top: 40px; left: 10px; z-index: 10; font-size: 10px; background-color: rgba(0,0,0,0.5); padding: 5px; }
-        .loader { border: 8px solid #f3f3f3; border-top: 8px solid #5a4f49; border-radius: 50%; width: 60px; height: 60px; animation: spin 2s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .overlay {
+
+            position: absolute;
+
+            top: 0;
+
+            left: 0;
+
+            width: 100vw;
+
+            height: 100vh;
+
+            pointer-events: none;
+
+            z-index: 20;
+
+            transition: opacity 0.5s ease-in-out, background-color 1.5s ease-in-out;
+
+        }
+
+        #danger-tint { background-color: red; opacity: 0; }
+
+        #night-overlay { background-color: #0c0a1e; opacity: 0; }
+
+        #time-ui {
+
+            position: absolute;
+
+            top: 10px;
+
+            right: 10px;
+
+            z-index: 10;
+
+            font-size: 24px;
+
+            background-color: rgba(0,0,0,0.5);
+
+            padding: 5px;
+
+            border-radius: 5px;
+
+        }
+
+        #recipe-book-btn {
+
+            background-color: rgba(0,0,0,0.6);
+
+            border: 4px solid #5a4f49;
+
+            box-shadow: 0 0 0 4px #2b211c;
+
+            padding: 5px 10px;
+
+            font-size: 24px;
+
+            cursor: pointer;
+
+        }
+
+        #recipe-book-modal, #game-over-screen, #chest-modal {
+
+            position: absolute;
+
+            top: 50%;
+
+            left: 50%;
+
+            transform: translate(-50%, -50%);
+
+            z-index: 30;
+
+            background-color: #382b22;
+
+            border: 4px solid #5a4f49;
+
+            box-shadow: 0 0 0 4px #2b211c;
+
+            padding: 20px;
+
+            text-align: center;
+
+        }
+
+        .recipe-entry { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+
+        .recipe-grid { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 4px; border: 2px solid #2b211c; padding: 4px; }
+
+        .recipe-result { display: flex; align-items: center; gap: 10px; font-size: 24px; }
+
+        
+
+        #health-bar-container {
+
+            width: 392px; /* Match hotbar width */
+
+            height: 20px;
+
+            background-color: rgba(0,0,0,0.5);
+
+            border: 2px solid #5a4f49;
+
+            margin-bottom: 8px; /* Space above hotbar */
+
+        }
+
+        #health-bar {
+
+            width: 100%;
+
+            height: 100%;
+
+            background-color: #ef4444; /* red-500 */
+
+            transition: width 0.3s ease-in-out;
+
+        }
+
+        #god-menu {
+
+            position: absolute;
+
+            top: 220px;
+
+            left: 1rem;
+
+            width: 200px;
+
+            z-index: 25;
+
+            font-size: 10px;
+
+        }
+
+        #god-menu .god-menu-content { max-height: 200px; overflow-y: auto; }
+
+        #god-menu button, #god-menu label {
+
+            display: block;
+
+            width: 100%;
+
+            text-align: left;
+
+            margin-bottom: 5px;
+
+            font-size: 10px;
+
+        }
+
+        #god-menu button {
+
+            background-color: rgba(0,0,0,0.7);
+
+            border: 2px solid #5a4f49;
+
+            padding: 4px;
+
+            cursor: pointer;
+
+        }
+
     </style>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
+
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
 </head>
+
 <body>
+
     <canvas id="game-canvas"></canvas>
-    <div id="loading-overlay" class="absolute inset-0 bg-gray-800 bg-opacity-90 flex flex-col justify-center items-center z-50">
-        <div class="loader"></div>
-        <p class="text-white text-xl mt-4">Connecting...</p>
-        <p id="loading-error" class="text-red-400 text-sm mt-2"></p>
-    </div>
-    <div id="name-container">
-        <input type="text" id="name-input" placeholder="Enter your name..."><button id="set-name-btn">Set</button>
-    </div>
-    <div id="user-id-display">Your User ID: <span id="user-id"></span></div>
-    <div class="ui-container">
-        <div id="crafting-panel" class="ui-panel">
-            <h3>CRAFTING</h3>
-            <div class="crafting-area">
-                <div id="crafting-grid" class="crafting-grid">
-                    <div class="inventory-slot" data-idx="0"></div><div class="inventory-slot" data-idx="1"></div>
-                    <div class="inventory-slot" data-idx="2"></div><div class="inventory-slot" data-idx="3"></div>
-                </div>
-                <div class="crafting-arrow">-></div>
-                <div id="crafting-output" class="inventory-slot"></div>
+
+    <canvas id="minimap-canvas"></canvas>
+
+    <div id="danger-tint" class="overlay"></div>
+
+    <div id="night-overlay" class="overlay"></div>
+
+    <div id="time-ui">☀️</div>
+
+    
+
+    <div id="god-menu" class="ui-panel hidden">
+
+        <h3 class="text-sm">GOD MENU (G)</h3>
+
+        <div class="god-menu-content w-full">
+
+            <label>Speed: <span id="speed-value">4</span></label>
+
+            <input type="range" id="speed-slider" min="1" max="20" value="4" class="w-full">
+
+            <label><input type="checkbox" id="noclip-checkbox"> Noclip</label>
+
+            <label><input type="checkbox" id="invincible-checkbox"> Invincible</label>
+
+            <button id="reveal-map-btn">Reveal Map</button>
+
+            <div id="teleport-locations">
+
+                <h4 class="text-xs mt-2 mb-1">Teleport:</h4>
+
             </div>
-            <div id="inventory-panel" class="inventory-grid mt-4" style="grid-template-columns: repeat(9, 40px);"></div>
+
         </div>
-        <div id="hotbar-panel" class="ui-panel">
-            <div id="hotbar" class="hotbar-grid"></div>
-        </div>
-        <div id="chat-panel" class="ui-panel chat-container">
-            <h3>CHAT</h3>
-            <div id="chat-messages"></div>
-            <input type="text" id="chat-input" placeholder="Type message...">
-        </div>
-    </div>
-    <div id="message-box" class="fixed top-5 right-5 bg-red-500 text-white p-4 rounded-lg shadow-xl hidden transition-opacity duration-300">
-        <p id="message-text"></p>
+
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, serverTimestamp, writeBatch, addDoc, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <div class="ui-container">
+
+        <div id="crafting-inventory-panel" class="ui-panel">
+
+            <div class="flex items-center gap-2 mb-4">
+
+                 <h3 class="text-lg">CRAFTING</h3>
+
+                 <button id="recipe-book-btn">📖</button>
+
+            </div>
+
+            <div class="crafting-area">
+
+                <div id="crafting-grid" class="crafting-grid">
+
+                    <div class="inventory-slot" data-idx="0"></div><div class="inventory-slot" data-idx="1"></div><div class="inventory-slot" data-idx="2"></div>
+
+                    <div class="inventory-slot" data-idx="3"></div><div class="inventory-slot" data-idx="4"></div><div class="inventory-slot" data-idx="5"></div>
+
+                    <div class="inventory-slot" data-idx="6"></div><div class="inventory-slot" data-idx="7"></div><div class="inventory-slot" data-idx="8"></div>
+
+                </div>
+
+                <div class="crafting-arrow">-></div>
+
+                <div id="crafting-output" class="inventory-slot"></div>
+
+            </div>
+
+            <h3 class="text-sm mt-4">MAIN INVENTORY (Press 'E' to close)</h3>
+
+            <div id="inventory-grid" class="inventory-grid mt-2" style="grid-template-columns: repeat(9, 40px); grid-template-rows: repeat(2, 40px);"></div>
+
+        </div>
+
+        <div id="hotbar-panel" class="ui-panel">
+
+            <div id="health-bar-container">
+
+                <div id="health-bar"></div>
+
+            </div>
+
+            <div id="hotbar" class="hotbar-grid"></div>
+
+        </div>
+
+    </div>
+
+    
+
+    <div id="recipe-book-modal" class="hidden">
+
+        <h2 class="text-xl text-center mb-4">Recipe Book</h2>
+
+        <div id="recipe-list"></div>
+
+        <button id="close-recipe-book-btn" class="w-full mt-4 bg-red-700 p-2">Close</button>
+
+    </div>
+
+    <div id="chest-modal" class="ui-panel hidden">
+
+        <h3 class="text-lg mb-4">Chest</h3>
+
+        <div id="chest-grid" class="inventory-grid" style="grid-template-columns: repeat(9, 40px); grid-template-rows: repeat(3, 40px);"></div>
+
+        <button id="close-chest-btn" class="w-full mt-4 bg-red-700 p-2 text-sm">Close</button>
+
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+
+        <h2 class="text-4xl text-red-500 mb-4">YOU DIED</h2>
+
+        <button id="respawn-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded hover:bg-blue-600">Respawn</button>
+
+    </div>
+
+    <div id="message-box" class="fixed top-5 right-5 bg-red-500 text-white p-4 rounded-lg shadow-xl hidden transition-opacity duration-300">
+
+        <p id="message-text"></p>
+
+    </div>
+
+    <script>
 
         // --- DOM Elements ---
+
         const canvas = document.getElementById('game-canvas');
+
         const ctx = canvas.getContext('2d');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const loadingText = loadingOverlay.querySelector('p:not(#loading-error)');
-        const loadingErrorText = document.getElementById('loading-error');
-        const nameInputEl = document.getElementById('name-input');
-        const setNameBtnEl = document.getElementById('set-name-btn');
-        const userIdDisplay = document.getElementById('user-id');
-        const chatMessagesEl = document.getElementById('chat-messages');
-        const chatInputEl = document.getElementById('chat-input');
+
+        const minimapCanvas = document.getElementById('minimap-canvas');
+
+        const minimapCtx = minimapCanvas.getContext('2d');
+
         const messageBox = document.getElementById('message-box');
+
         const messageText = document.getElementById('message-text');
 
+        const dangerTintEl = document.getElementById('danger-tint');
+
+        const nightOverlayEl = document.getElementById('night-overlay');
+
+        const timeUiEl = document.getElementById('time-ui');
+
+        const recipeBookBtn = document.getElementById('recipe-book-btn');
+
+        const recipeBookModal = document.getElementById('recipe-book-modal');
+
+        const closeRecipeBookBtn = document.getElementById('close-recipe-book-btn');
+
+        const recipeListEl = document.getElementById('recipe-list');
+
+        const craftingInventoryPanel = document.getElementById('crafting-inventory-panel');
+
+        const healthBarEl = document.getElementById('health-bar');
+
+        const gameOverScreen = document.getElementById('game-over-screen');
+
+        const respawnBtn = document.getElementById('respawn-btn');
+
+        const chestModal = document.getElementById('chest-modal');
+
+        const closeChestBtn = document.getElementById('close-chest-btn');
+
+        // God Menu Elements
+
+        const godMenu = document.getElementById('god-menu');
+
+        const speedSlider = document.getElementById('speed-slider');
+
+        const speedValue = document.getElementById('speed-value');
+
+        const noclipCheckbox = document.getElementById('noclip-checkbox');
+
+        const invincibleCheckbox = document.getElementById('invincible-checkbox');
+
+        const revealMapBtn = document.getElementById('reveal-map-btn');
+
+        const teleportLocationsDiv = document.getElementById('teleport-locations');
+
         // --- Game Config ---
+
         const TILE_SIZE = 32; const MAP_WIDTH = 100; const MAP_HEIGHT = 100;
 
-        // --- Game State ---
-        let db, auth;
-        let localPlayer = null; let otherPlayers = {}; let worldObjects = {};
-        const keysPressed = {}; const camera = { x: 0, y: 0 };
-        const gameState = { worldId: null, userId: null, unsubscribes: [], isAuthReady: false };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const DAY_DURATION_MS = 120 * 1000;
 
-        const EMOJIS = { PLAYER: '◉‿◉', AXE: '🪓', PICKAXE: '⛏️', SWORD: '⚔️', WALL: '🧱', TORCH: '🔥', TREE_S: '🌳', TREE_M: '🌳', TREE_L: '🌳', ROCK: '🪨', ENEMY: '👻', BERRY: '🍓', WOOD: '🪵', STONE: '𪨘' };
-        const CRAFTING_RECIPES = { 'AXE': { recipe: ['WOOD', 'WOOD', null, 'WOOD'], yields: 1 }, 'PICKAXE': { recipe: ['WOOD', 'WOOD', null, 'STONE'], yields: 1 }, 'WALL': { recipe: ['STONE', 'STONE', null, null], yields: 4 }, };
-        let craftingGrid = [null, null, null, null]; let selectedInventoryItem = null;
+        const NIGHT_DURATION_MS = 90 * 1000;
+
+        const DUNGEON_Y_OFFSET = 5000;
+
+        const MINIMAP_SCALE = 1;
+
+        // --- Game State (Local) ---
+
+        let localPlayer = null; 
+
+        let worldObjects = {};
+
+        const keysPressed = {}; 
+
+        const keyPressStartTime = {}; 
+
+        const camera = { x: 0, y: 0 };
+
+        let isNight = false;
+
+        let lastTimeUpdate = 0;
+
+        let timeCycle = 0;
+
+        const mouse = { x: 0, y: 0 };
+
+        let placementPreview = null;
+
+        let animationFrameId;
+
+        let openedChestId = null;
+
+        let exploredTiles = [];
+
+        const godMode = {
+
+            speed: 4,
+
+            noclip: false,
+
+            invincible: false
+
+        };
+
+        let grassPattern = null;
+
+        const EMOJIS = { PLAYER: '◉‿◉', AXE: '🪓', PICKAXE: '⛏️', SWORD: '⚔️', WALL: '🧱', TORCH: '🔥', TREE_S: '🌳', TREE_M: '🌳', TREE_L: '🌳', ROCK: '🪨', ENEMY: '👻', BERRY: '🍓', WOOD: '🪵', STONE: '🪨', SAPLING: '🌱', SLIME: '🟢', SPORE_SHROOM: '🍄', SPORE: '🏵', CHEST: '🟫', DUNGEON_ENTRANCE: '🕳', DUNGEON_EXIT: '🪜', DUNGEON_WALL: '⬛', COW: '🐮', BEEF: '🥩' };
+
+        const CRAFTING_RECIPES = {
+
+            'AXE':     { recipe: ['WOOD',  'WOOD',  null,   'WOOD',  'WOOD',  null,   null,    'WOOD',  null  ], yields: 1 },
+
+            'PICKAXE': { recipe: ['STONE', 'STONE', 'STONE',null,    'WOOD',  null,   null,    'WOOD',  null  ], yields: 1 },
+
+            'SWORD':   { recipe: [null, 'STONE', null, null, 'STONE', null, null, 'WOOD', null], yields: 1 },
+
+            'WALL':    { recipe: ['STONE', 'STONE', null,   'STONE', 'STONE', null,   null,    null,    null  ], yields: 8 },
+
+            'CHEST':   { recipe: ['WOOD', 'WOOD', 'WOOD', 'WOOD', null, 'WOOD', 'WOOD', 'WOOD', 'WOOD'], yields: 1},
+
+            'TORCH':   { recipe: [null,    'STONE', null,   null,    'WOOD',  null,   null,    null,    null  ], yields: 4 }
+
+        };
+
+        let craftingGrid = Array(9).fill(null); 
+
+        let selectedInventoryItem = null;
 
         // --- Main Game Functions ---
-        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        function gameLoop() { if (!localPlayer) return; update(); render(); requestAnimationFrame(gameLoop); }
 
-        function update() {
-            const speed = 4; let dx = 0; let dy = 0;
-            if (keysPressed['w'] || keysPressed['ArrowUp']) dy -= 1; if (keysPressed['s'] || keysPressed['ArrowDown']) dy += 1;
-            if (keysPressed['a'] || keysPressed['ArrowLeft']) dx -= 1; if (keysPressed['d'] || keysPressed['ArrowRight']) dx += 1;
-            if (dx !== 0 || dy !== 0) {
-                const magnitude = Math.sqrt(dx * dx + dy * dy); const normalizedDx = (dx / magnitude) * speed; const normalizedDy = (dy / magnitude) * speed;
-                let nextX = localPlayer.x + normalizedDx; let nextY = localPlayer.y + normalizedDy; let collision = false;
-                for (const id in worldObjects) { const obj = worldObjects[id]; if (obj.type === 'WALL' || obj.type.startsWith('TREE') || obj.type === 'ROCK') { if (Math.hypot(nextX - obj.x, nextY - obj.y) < TILE_SIZE * 0.8) { collision = true; break; } } }
-                if (!collision) {
-                    localPlayer.x = nextX; localPlayer.y = nextY;
-                    const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId);
-                    setDoc(playerRef, { x: localPlayer.x, y: localPlayer.y, lastUpdate: serverTimestamp() }, { merge: true });
-                }
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+
+        
+
+        function startGameLoop() {
+
+             if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+             function loop(timestamp) {
+
+                const deltaTime = lastTimeUpdate > 0 ? timestamp - lastTimeUpdate : 16;
+
+                update(deltaTime); 
+
+                render(); 
+
+                lastTimeUpdate = timestamp;
+
+                animationFrameId = requestAnimationFrame(loop); 
+
             }
+
+            animationFrameId = requestAnimationFrame(loop);
+
+        }
+
+        function stopGameLoop() {
+
+            if (animationFrameId) {
+
+                cancelAnimationFrame(animationFrameId);
+
+                animationFrameId = null;
+
+            }
+
+        }
+
+        function update(deltaTime) {
+
+            if (!localPlayer || localPlayer.health <= 0) return;
+
+            timeCycle += deltaTime;
+
+            const currentCycleDuration = isNight ? NIGHT_DURATION_MS : DAY_DURATION_MS;
+
+            if (timeCycle >= currentCycleDuration) {
+
+                isNight = !isNight;
+
+                timeCycle = 0;
+
+                nightOverlayEl.style.opacity = isNight ? '0.6' : '0';
+
+                timeUiEl.textContent = isNight ? '🌙' : '☀️';
+
+            }
+
+            if (localPlayer.attackAnimation) {
+
+                localPlayer.attackAnimation.timer -= deltaTime;
+
+                if (localPlayer.attackAnimation.timer <= 0) {
+
+                    localPlayer.attackAnimation = null;
+
+                }
+
+            }
+
+            let isBoosting = false;
+
+            const BOOST_THRESHOLD = 3500; 
+
+            const currentTime = performance.now();
+
+            for (const key in keysPressed) {
+
+                if (keysPressed[key] && keyPressStartTime[key]) {
+
+                    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+
+                        if (currentTime - keyPressStartTime[key] > BOOST_THRESHOLD) {
+
+                            isBoosting = true;
+
+                            break; 
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+            const speed = isBoosting ? godMode.speed * 1.5 : godMode.speed; 
+
+            let dx = 0; let dy = 0;
+
+            if (keysPressed['w'] || keysPressed['arrowup']) dy -= 1; 
+
+            if (keysPressed['s'] || keysPressed['arrowdown']) dy += 1;
+
+            if (keysPressed['a'] || keysPressed['arrowleft']) dx -= 1; 
+
+            if (keysPressed['d'] || keysPressed['arrowright']) dx += 1;
+
+            
+
+            if (dx !== 0 || dy !== 0) {
+
+                if (Math.abs(dx) > Math.abs(dy)) { localPlayer.facing = dx > 0 ? 'right' : 'left'; } 
+
+                else { localPlayer.facing = dy > 0 ? 'down' : 'up'; }
+
+                const magnitude = Math.sqrt(dx * dx + dy * dy); 
+
+                const velX = (dx / magnitude) * speed; 
+
+                const velY = (dy / magnitude) * speed;
+
+                
+
+                const isColliding = (x, y) => {
+
+                    if (godMode.noclip) return false;
+
+                    for (const id in worldObjects) {
+
+                        const obj = worldObjects[id];
+
+                        if (obj.type === 'WALL' || obj.type.startsWith('TREE') || obj.type === 'ROCK' || obj.type === 'CHEST' || obj.type === 'DUNGEON_WALL' || obj.type === 'COW') {
+
+                             if (Math.hypot(x - obj.x, y - obj.y) < TILE_SIZE * 0.8) {
+
+                                return true;
+
+                            }
+
+                        }
+
+                    }
+
+                    return false;
+
+                };
+
+                if (!isColliding(localPlayer.x + velX, localPlayer.y)) {
+
+                    localPlayer.x += velX;
+
+                }
+
+                if (!isColliding(localPlayer.x, localPlayer.y + velY)) {
+
+                    localPlayer.y += velY;
+
+                }
+
+                
+
+                if (!localPlayer.isInDungeon) {
+
+                    const mapPixelWidth = MAP_WIDTH * TILE_SIZE; const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+
+                    if (localPlayer.x < 0) localPlayer.x += mapPixelWidth; 
+
+                    if (localPlayer.x >= mapPixelWidth) localPlayer.x -= mapPixelWidth;
+
+                    if (localPlayer.y < 0) localPlayer.y += mapPixelHeight; 
+
+                    if (localPlayer.y >= mapPixelHeight) localPlayer.y -= mapPixelHeight;
+
+                    const playerGridX = Math.floor(localPlayer.x / TILE_SIZE);
+
+                    const playerGridY = Math.floor(localPlayer.y / TILE_SIZE);
+
+                    
+
+                    const revealRadius = 2;
+
+                    for (let i = -revealRadius; i <= revealRadius; i++) {
+
+                        for (let j = -revealRadius; j <= revealRadius; j++) {
+
+                            const checkX = playerGridX + i;
+
+                            const checkY = playerGridY + j;
+
+                            if (checkX >= 0 && checkX < MAP_WIDTH && checkY >= 0 && checkY < MAP_HEIGHT) {
+
+                                exploredTiles[checkX][checkY] = 1;
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+            
+
+            const selectedItem = localPlayer.hotbar[localPlayer.selectedHotbar];
+
+            if ((selectedItem === 'WALL' || selectedItem === 'SAPLING' || selectedItem === 'CHEST' || selectedItem === 'TORCH')) {
+
+                const worldX = mouse.x + camera.x; const worldY = mouse.y + camera.y;
+
+                const gridX = Math.round(worldX / TILE_SIZE) * TILE_SIZE; const gridY = Math.round(worldY / TILE_SIZE) * TILE_SIZE;
+
+                let isValid = true;
+
+                for (const id in worldObjects) { if (Math.hypot(worldObjects[id].x - gridX, worldObjects[id].y - gridY) < TILE_SIZE * 0.8) { isValid = false; break; } }
+
+                const PLACEMENT_RADIUS = TILE_SIZE * 5; if (Math.hypot(localPlayer.x - gridX, localPlayer.y - gridY) > PLACEMENT_RADIUS) { isValid = false; }
+
+                placementPreview = { type: selectedItem, x: gridX, y: gridY, isValid };
+
+            } else { placementPreview = null; }
+
+            let nearestMonsterDist = Infinity;
+
+            for (const id in worldObjects) {
+
+                const obj = worldObjects[id];
+
+                if (obj.type === 'SPORE') {
+
+                    obj.x += obj.vx; obj.y += obj.vy; obj.lifetime -= deltaTime;
+
+                    const distToPlayer = Math.hypot(localPlayer.x - obj.x, localPlayer.y - obj.y);
+
+                     const now = Date.now();
+
+                    if (distToPlayer < TILE_SIZE * 0.5 && (!localPlayer.lastDamageTime || now - localPlayer.lastDamageTime > 1000)) {
+
+                         if (!godMode.invincible) {
+
+                            localPlayer.health -= 5;
+
+                            localPlayer.lastDamageTime = now;
+
+                            updateHealthUI();
+
+                            if (localPlayer.health <= 0) gameOver();
+
+                         }
+
+                         delete worldObjects[id]; continue;
+
+                    }
+
+                    if (obj.lifetime <= 0) { delete worldObjects[id]; continue; }
+
+                }
+
+                if (obj.type === 'ENEMY' || obj.type === 'SLIME' || obj.type === 'SPORE_SHROOM') {
+
+                    const dist = Math.hypot(localPlayer.x - obj.x, localPlayer.y - obj.y);
+
+                    if (dist < nearestMonsterDist) nearestMonsterDist = dist;
+
+                    if (isNight || localPlayer.isInDungeon) {
+
+                        const AGGRO_RADIUS = TILE_SIZE * 12;
+
+                        if (dist < AGGRO_RADIUS) {
+
+                             if (obj.type === 'ENEMY') {
+
+                                const monsterSpeed = 2; const mdx = localPlayer.x - obj.x; const mdy = localPlayer.y - obj.y; const magnitude = Math.sqrt(mdx*mdx + mdy*mdy);
+
+                                if (magnitude > 1) {
+
+                                    const mNormalizedDx = (mdx / magnitude) * monsterSpeed; const mNormalizedDy = (mdy / magnitude) * monsterSpeed;
+
+                                    let nextMx = obj.x + mNormalizedDx; let nextMy = obj.y + mNormalizedDy; let wallCollision = false;
+
+                                    for (const wallId in worldObjects) {
+
+                                        const wall = worldObjects[wallId];
+
+                                        if (wall.type === 'WALL' && Math.hypot(nextMx - wall.x, nextMy - wall.y) < TILE_SIZE * 0.8) {
+
+                                            wallCollision = true; const now = Date.now();
+
+                                            if (!obj.lastAttackTime || now - obj.lastAttackTime > 1000) { wall.health = (wall.health || 150) - 25; obj.lastAttackTime = now; if (wall.health <= 0) delete worldObjects[wallId]; }
+
+                                            break;
+
+                                        }
+
+                                    }
+
+                                    if (!wallCollision) { obj.x = nextMx; obj.y = nextMy; }
+
+                                }
+
+                                const now = Date.now();
+
+                                if (dist < TILE_SIZE * 0.8 && (!localPlayer.lastDamageTime || now - localPlayer.lastDamageTime > 1000)) {
+
+                                     if (!godMode.invincible) {
+
+                                        localPlayer.health -= 10; localPlayer.lastDamageTime = now; updateHealthUI(); if (localPlayer.health <= 0) gameOver();
+
+                                     }
+
+                                }
+
+                             } else if (obj.type === 'SLIME') {
+
+                                obj.jumpCooldown -= deltaTime;
+
+                                if (obj.jumpState === 'idle' && obj.jumpCooldown <= 0) {
+
+                                    obj.jumpState = 'jumping'; obj.vz = 6; obj.jumpTargetX = localPlayer.x; obj.jumpTargetY = localPlayer.y;
+
+                                }
+
+                                if (obj.jumpState === 'jumping') {
+
+                                    const jumpSpeed = 2.5; const jdx = obj.jumpTargetX - obj.x; const jdy = obj.jumpTargetY - obj.y; const jMagnitude = Math.hypot(jdx, jdy);
+
+                                    if (jMagnitude > jumpSpeed) { obj.x += (jdx / jMagnitude) * jumpSpeed; obj.y += (jdy / jMagnitude) * jumpSpeed; }
+
+                                    obj.z += obj.vz; obj.vz -= 0.4;
+
+                                    if (obj.z <= 0) {
+
+                                        obj.z = 0; obj.jumpState = 'idle'; obj.jumpCooldown = 1500 + Math.random() * 1000;
+
+                                        const landDist = Math.hypot(localPlayer.x - obj.x, localPlayer.y - obj.y); const now = Date.now();
+
+                                        if (landDist < TILE_SIZE && (!localPlayer.lastDamageTime || now - localPlayer.lastDamageTime > 1000)) {
+
+                                            if (!godMode.invincible) {
+
+                                                localPlayer.health -= 15; localPlayer.lastDamageTime = now; updateHealthUI(); if (localPlayer.health <= 0) gameOver();
+
+                                            }
+
+                                        }
+
+                                    }
+
+                                }
+
+                             } else if (obj.type === 'SPORE_SHROOM') {
+
+                                obj.attackCooldown -= deltaTime;
+
+                                if (obj.attackCooldown <= 0) {
+
+                                    const projectileId = `spore_${Date.now()}`; const pdx = localPlayer.x - obj.x; const pdy = localPlayer.y - obj.y; const pMagnitude = Math.hypot(pdx, pdy); const sporeSpeed = 3;
+
+                                    worldObjects[projectileId] = { type: 'SPORE', x: obj.x, y: obj.y, size: TILE_SIZE * 0.5, vx: (pdx / pMagnitude) * sporeSpeed, vy: (pdy / pMagnitude) * sporeSpeed, lifetime: 3000 };
+
+                                    obj.attackCooldown = 2000 + Math.random() * 500;
+
+                                }
+
+                             }
+
+                        }
+
+                    } else if (obj.type !== 'SPORE_SHROOM') {
+
+                        obj.wanderTimer = (obj.wanderTimer || 0) - deltaTime;
+
+                        if (obj.wanderTimer <= 0) {
+
+                            const wanderAngle = Math.random() * Math.PI * 2; const wanderDist = TILE_SIZE * 3;
+
+                            obj.wanderTargetX = obj.x + Math.cos(wanderAngle) * wanderDist; obj.wanderTargetY = obj.y + Math.sin(wanderAngle) * wanderDist; obj.wanderTimer = 3000 + Math.random() * 2000;
+
+                        }
+
+                        if (obj.wanderTargetX && obj.wanderTargetY) {
+
+                            const monsterSpeed = 0.5; const mdx = obj.wanderTargetX - obj.x; const mdy = obj.wanderTargetY - obj.y; const magnitude = Math.hypot(mdx, mdy);
+
+                            if (magnitude > monsterSpeed) { obj.x += (mdx / magnitude) * monsterSpeed; obj.y += (mdy / magnitude) * monsterSpeed; } 
+
+                            else { obj.wanderTargetX = null; obj.wanderTargetY = null; }
+
+                        }
+
+                    }
+
+                } else if (obj.type === 'COW') {
+
+                    obj.wanderTimer = (obj.wanderTimer || 0) - deltaTime;
+
+                    if (obj.wanderTimer <= 0) {
+
+                        const wanderAngle = Math.random() * Math.PI * 2; const wanderDist = TILE_SIZE * 3;
+
+                        obj.wanderTargetX = obj.x + Math.cos(wanderAngle) * wanderDist; obj.wanderTargetY = obj.y + Math.sin(wanderAngle) * wanderDist; obj.wanderTimer = 3000 + Math.random() * 2000;
+
+                    }
+
+                    if (obj.wanderTargetX && obj.wanderTargetY) {
+
+                        const cowSpeed = 1; const mdx = obj.wanderTargetX - obj.x; const mdy = obj.wanderTargetY - obj.y; const magnitude = Math.hypot(mdx, mdy);
+
+                        if (magnitude > cowSpeed) { obj.x += (mdx / magnitude) * cowSpeed; obj.y += (mdy / magnitude) * cowSpeed; } 
+
+                        else { obj.wanderTargetX = null; obj.wanderTargetY = null; }
+
+                    }
+
+                }
+
+            }
+
+            const DANGER_RADIUS = TILE_SIZE * 8;
+
+            dangerTintEl.style.opacity = (isNight || localPlayer.isInDungeon) && nearestMonsterDist < DANGER_RADIUS ? 0.5 * (1 - (nearestMonsterDist / DANGER_RADIUS)) : 0;
+
             camera.x = localPlayer.x - canvas.width / 2; camera.y = localPlayer.y - canvas.height / 2;
+
         }
 
         function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.translate(-camera.x, -camera.y);
-            for (const id in worldObjects) {
-                const obj = worldObjects[id]; ctx.font = `${obj.size || TILE_SIZE * 0.8}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(EMOJIS[obj.type] || '?', obj.x, obj.y);
-                if (obj.maxHealth && obj.health < obj.maxHealth) {
-                    const barWidth = TILE_SIZE; const barHeight = 5; const barX = obj.x - barWidth / 2; const barY = obj.y - (obj.size || TILE_SIZE) * 0.8;
-                    ctx.fillStyle = '#b91c1c'; ctx.fillRect(barX, barY, barWidth, barHeight);
-                    ctx.fillStyle = '#16a34a'; const healthPercentage = obj.health / obj.maxHealth; ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+
+            if (!localPlayer) return;
+
+            
+
+            // --- Normal Rendering ---
+
+            if (localPlayer.isInDungeon) { 
+
+                ctx.fillStyle = '#4a403a'; 
+
+                minimapCanvas.classList.add('hidden');
+
+            } else { 
+
+                if (grassPattern) {
+
+                    ctx.fillStyle = grassPattern;
+
+                } else {
+
+                    ctx.fillStyle = '#5d9254'; 
+
                 }
+
+                minimapCanvas.classList.remove('hidden'); 
+
             }
-            for (const id in otherPlayers) {
-                if (id === gameState.userId) continue; const player = otherPlayers[id]; ctx.fillStyle = 'white'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(EMOJIS.PLAYER, player.x, player.y - 20); ctx.font = '10px "Press Start 2P"'; ctx.fillText(player.name, player.x, player.y - 40);
+
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            
+
+            ctx.save(); ctx.translate(-camera.x, -camera.y);
+
+            
+
+            const mapPixelWidth = MAP_WIDTH * TILE_SIZE; const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+
+            
+
+            const renderContext = (offset = {x:0, y:0}) => {
+
+                for (const id in worldObjects) {
+
+                    const obj = worldObjects[id]; 
+
+                    const objIsInDungeon = obj.y >= DUNGEON_Y_OFFSET;
+
+                    if (localPlayer.isInDungeon !== objIsInDungeon) {
+
+                        continue;
+
+                    }
+
+                    const drawX = obj.x + offset.x;
+
+                    let drawY = obj.y + offset.y;
+
+                    
+
+                    if (obj.type === 'SLIME' && obj.z > 0) {
+
+                        drawY -= obj.z;
+
+                        ctx.beginPath();
+
+                        ctx.ellipse(drawX, obj.y + offset.y + TILE_SIZE * 0.2, TILE_SIZE * 0.4 * (1 - obj.z / 80), TILE_SIZE * 0.1 * (1 - obj.z / 80), 0, 0, 2 * Math.PI);
+
+                        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+
+                        ctx.fill();
+
+                    }
+
+                    
+
+                    const size = obj.size || TILE_SIZE * 0.8;
+
+                    ctx.font = `${size}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(EMOJIS[obj.type] || '?', drawX, drawY);
+
+                    if (obj.maxHealth && obj.health < obj.maxHealth) {
+
+                        const barWidth = TILE_SIZE; const barHeight = 5; const barX = drawX - barWidth / 2; const barY = drawY - size * 0.8;
+
+                        ctx.fillStyle = '#b91c1c'; ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                        ctx.fillStyle = '#16a34a'; const healthPercentage = obj.health / obj.maxHealth; ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+
+                    }
+
+                }
+
+                const playerDrawX = localPlayer.x + offset.x; const playerDrawY = localPlayer.y + offset.y;
+
+                ctx.fillStyle = 'yellow'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(EMOJIS.PLAYER, playerDrawX, playerDrawY - 20); 
+
+                ctx.font = '10px "Press Start 2P"'; ctx.fillText(localPlayer.name, playerDrawX, playerDrawY - 40);
+
+                if (localPlayer.attackAnimation && localPlayer.attackAnimation.active) {
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; ctx.lineWidth = 3; ctx.beginPath();
+
+                    let startAngle, endAngle;
+
+                    switch (localPlayer.facing) {
+
+                        case 'up': startAngle = -Math.PI * 0.75; endAngle = -Math.PI * 0.25; break;
+
+                        case 'down': startAngle = Math.PI * 0.25; endAngle = Math.PI * 0.75; break;
+
+                        case 'left': startAngle = Math.PI * 0.75; endAngle = Math.PI * 1.25; break;
+
+                        case 'right': default: startAngle = -Math.PI * 0.25; endAngle = Math.PI * 0.25; break;
+
+                    }
+
+                    ctx.arc(playerDrawX, playerDrawY, TILE_SIZE * 1.5, startAngle, endAngle);
+
+                    ctx.stroke();
+
+                }
+
+            };
+
+            
+
+            if (!localPlayer.isInDungeon) {
+
+                 const offsets = [ {x: 0, y: 0}, {x: mapPixelWidth, y: 0}, {x: -mapPixelWidth, y: 0}, {x: 0, y: mapPixelHeight}, {x: 0, y: -mapPixelHeight}, {x: mapPixelWidth, y: mapPixelHeight}, {x: -mapPixelWidth, y: mapPixelHeight}, {x: mapPixelWidth, y: -mapPixelHeight}, {x: -mapPixelWidth, y: -mapPixelHeight} ];
+
+                 offsets.forEach(renderContext);
+
+            } else {
+
+                renderContext();
+
             }
-            if (localPlayer) {
-                // PLAYER SPRITE - DO NOT CHANGE
-                ctx.fillStyle = 'yellow'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(EMOJIS.PLAYER, localPlayer.x, localPlayer.y - 20); ctx.font = '10px "Press Start 2P"'; ctx.fillText(localPlayer.name, localPlayer.x, localPlayer.y - 40);
+
+            if (placementPreview) {
+
+                ctx.globalAlpha = 0.5; ctx.fillStyle = placementPreview.isValid ? 'green' : 'red';
+
+                ctx.font = `${TILE_SIZE * 0.8}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+                ctx.fillText(EMOJIS[placementPreview.type], placementPreview.x, placementPreview.y); ctx.globalAlpha = 1.0;
+
             }
+
             ctx.restore();
+
+            // --- Lighting Effect for Dungeons ---
+
+            if (localPlayer.isInDungeon) {
+
+                // Collect all light sources
+
+                const lightSources = [{ x: localPlayer.x, y: localPlayer.y, radius: 200 }];
+
+                for (const id in worldObjects) {
+
+                    if (worldObjects[id].type === 'TORCH' && worldObjects[id].y >= DUNGEON_Y_OFFSET) {
+
+                        lightSources.push({ x: worldObjects[id].x, y: worldObjects[id].y, radius: 150 });
+
+                    }
+
+                }
+
+                // Create a temporary canvas for the light map
+
+                const lightCanvas = document.createElement('canvas');
+
+                lightCanvas.width = canvas.width;
+
+                lightCanvas.height = canvas.height;
+
+                const lightCtx = lightCanvas.getContext('2d');
+
+                // Draw the darkness overlay
+
+                lightCtx.fillStyle = 'rgba(0, 0, 0, 0.97)';
+
+                lightCtx.fillRect(0, 0, lightCanvas.width, lightCanvas.height);
+
+                
+
+                // Erase light sources from the darkness
+
+                lightCtx.globalCompositeOperation = 'destination-out';
+
+                lightSources.forEach(source => {
+
+                    const screenX = source.x - camera.x;
+
+                    const screenY = source.y - camera.y;
+
+                    const gradient = lightCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, source.radius);
+
+                    gradient.addColorStop(0, 'rgba(0,0,0,1)');
+
+                    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+                    lightCtx.fillStyle = gradient;
+
+                    lightCtx.beginPath();
+
+                    lightCtx.arc(screenX, screenY, source.radius, 0, Math.PI * 2);
+
+                    lightCtx.fill();
+
+                });
+
+                
+
+                // Draw the light map onto the main canvas
+
+                ctx.drawImage(lightCanvas, 0, 0);
+
+            }
+
+            renderMinimap();
+
         }
 
-// --- UI & Event Handlers ---
-        function renderCraftingUI() { if (!localPlayer) return; const gridSlots = document.querySelectorAll('#crafting-grid .inventory-slot'); gridSlots.forEach((slot, i) => { const item = craftingGrid[i]; slot.innerHTML = item ? EMOJIS[item] || item : ''; }); const inventoryPanel = document.getElementById('inventory-panel'); inventoryPanel.innerHTML = ''; const allItems = Object.keys(localPlayer.inventory).sort(); allItems.forEach(item => { const count = localPlayer.inventory[item]; if (item && count > 0) { const slot = document.createElement('div'); slot.className = 'inventory-slot'; if (item === selectedInventoryItem) { slot.classList.add('selected'); } slot.innerHTML = `${EMOJIS[item] || item}<div class="item-count">${count}</div>`; slot.addEventListener('click', () => handleInventoryClick(item)); inventoryPanel.appendChild(slot); } }); }
-        function updateHotbarUI() { if (!localPlayer) return; const hotbarPanel = document.getElementById('hotbar'); hotbarPanel.innerHTML = ''; for (let i = 0; i < 9; i++) { const slot = document.createElement('div'); slot.className = 'inventory-slot'; slot.dataset.idx = i; slot.classList.toggle('selected', i === localPlayer.selectedHotbar); const item = localPlayer.hotbar[i]; if (item) { const count = localPlayer.inventory[item] || 0; slot.innerHTML = `${EMOJIS[item] || item}${count > 1 ? `<div class="item-count">${count}</div>` : ''}`; } hotbarPanel.appendChild(slot); } }
-        function checkCraftingRecipe() { const outputSlot = document.getElementById('crafting-output'); outputSlot.innerHTML = ''; for (const itemName in CRAFTING_RECIPES) { const recipeInfo = CRAFTING_RECIPES[itemName]; if (JSON.stringify(recipeInfo.recipe) === JSON.stringify(craftingGrid)) { outputSlot.innerHTML = `${EMOJIS[itemName] || itemName}<div class="item-count">${recipeInfo.yields}</div>`; break; } } }
-        function showMessage(message, isError = true) { messageBox.className = `fixed top-5 right-5 p-4 rounded-lg shadow-xl transition-opacity duration-300 ${isError ? 'bg-red-500' : 'bg-green-500'} text-white`; messageText.textContent = message; messageBox.classList.remove('hidden'); setTimeout(() => { messageBox.classList.add('hidden'); }, 4000); }
-        function handleInventoryClick(item) { selectedInventoryItem = selectedInventoryItem === item ? null : item; renderCraftingUI(); }
-        document.getElementById('crafting-grid').addEventListener('click', (e) => { if (!e.target.closest('.inventory-slot')) return; const slot = e.target.closest('.inventory-slot'); const idx = parseInt(slot.dataset.idx); if (craftingGrid[idx]) { const item = craftingGrid[idx]; localPlayer.inventory[item] = (localPlayer.inventory[item] || 0) + 1; craftingGrid[idx] = null; } else if (selectedInventoryItem && localPlayer.inventory[selectedInventoryItem] > 0) { craftingGrid[idx] = selectedInventoryItem; localPlayer.inventory[selectedInventoryItem]--; if (localPlayer.inventory[selectedInventoryItem] <= 0) { delete localPlayer.inventory[selectedInventoryItem]; selectedInventoryItem = null; } } const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); setDoc(playerRef, { inventory: localPlayer.inventory }, { merge: true }); renderCraftingUI(); checkCraftingRecipe(); });
-        document.getElementById('crafting-output').addEventListener('click', () => { for (const itemName in CRAFTING_RECIPES) { const recipeInfo = CRAFTING_RECIPES[itemName]; if (JSON.stringify(recipeInfo.recipe) === JSON.stringify(craftingGrid)) { localPlayer.inventory[itemName] = (localPlayer.inventory[itemName] || 0) + recipeInfo.yields; craftingGrid = [null, null, null, null]; const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); setDoc(playerRef, { inventory: localPlayer.inventory }, { merge: true }); renderCraftingUI(); checkCraftingRecipe(); return; } } });
-        document.getElementById('hotbar').addEventListener('click', e => { if (!e.target.closest('.inventory-slot')) return; const slot = e.target.closest('.inventory-slot'); const idx = parseInt(slot.dataset.idx); if (selectedInventoryItem) { localPlayer.hotbar[idx] = selectedInventoryItem; selectedInventoryItem = null; const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); setDoc(playerRef, { hotbar: localPlayer.hotbar }, { merge: true }); renderCraftingUI(); updateHotbarUI(); } });
-        canvas.addEventListener('click', async e => { if (!localPlayer) return; const rect = canvas.getBoundingClientRect(); const clickX = e.clientX - rect.left + camera.x; const clickY = e.clientY - rect.top + camera.y; const selectedItem = localPlayer.hotbar[localPlayer.selectedHotbar]; let interacted = false; for (const id in worldObjects) { const obj = worldObjects[id]; if (Math.hypot(obj.x - localPlayer.x, obj.y - localPlayer.y) < TILE_SIZE * 1.5 && Math.hypot(obj.x - clickX, obj.y - clickY) < TILE_SIZE / 2) { if (obj.type.startsWith('TREE') || obj.type === 'ROCK') { let damage = 13; if ((obj.type.startsWith('TREE') && selectedItem === 'AXE') || (obj.type === 'ROCK' && selectedItem === 'PICKAXE')) { damage = 50; } const newHealth = obj.health - damage; const objRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "worldObjects", id); if (newHealth > 0) { setDoc(objRef, { health: newHealth }, { merge: true }); } else { let resourceToGain = null; let amountToGain = 0; if (obj.type.startsWith('TREE')) { resourceToGain = 'WOOD'; amountToGain = selectedItem === 'AXE' ? obj.woodYield : 1; } else if (obj.type === 'ROCK') { resourceToGain = 'STONE'; amountToGain = selectedItem === 'PICKAXE' ? 5 : 1; } if (resourceToGain) { localPlayer.inventory[resourceToGain] = (localPlayer.inventory[resourceToGain] || 0) + amountToGain; } const batch = writeBatch(db); batch.delete(objRef); const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); batch.update(playerRef, { inventory: localPlayer.inventory }); await batch.commit(); } interacted = true; break; } } } if (!interacted && selectedItem === 'WALL' && (localPlayer.inventory.WALL || 0) > 0) { const gridX = Math.round(clickX / TILE_SIZE) * TILE_SIZE; const gridY = Math.round(clickY / TILE_SIZE) * TILE_SIZE; const wallRef = collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "worldObjects"); addDoc(wallRef, { type: 'WALL', x: gridX, y: gridY }); localPlayer.inventory.WALL--; const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); setDoc(playerRef, { inventory: localPlayer.inventory }, { merge: true }); } });
-        window.addEventListener('keydown', e => { keysPressed[e.key.toLowerCase()] = true; if (!isNaN(e.key) && e.key >= 1 && e.key <= 9 && localPlayer) { localPlayer.selectedHotbar = parseInt(e.key) - 1; updateHotbarUI(); const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); setDoc(playerRef, { selectedHotbar: localPlayer.selectedHotbar }, { merge: true }); } });
-        window.addEventListener('keyup', e => { keysPressed[e.key.toLowerCase()] = false; });
-        chatInputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' && chatInputEl.value.trim() !== '') { if (!localPlayer || !localPlayer.name) return; const chatRef = collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "chat"); addDoc(chatRef, { senderName: localPlayer.name, text: chatInputEl.value.trim(), timestamp: serverTimestamp() }); chatInputEl.value = ''; } });
-        window.addEventListener('resize', resizeCanvas);
-        setNameBtnEl.addEventListener('click', () => { if (localPlayer && nameInputEl.value) { localPlayer.name = nameInputEl.value; const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); setDoc(playerRef, { name: localPlayer.name }, { merge: true }).then(() => showMessage("Name updated!", false)); } });
+        function renderMinimap() {
+
+            if (localPlayer.isInDungeon) return;
+
+            minimapCtx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+            minimapCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+
+            minimapCtx.fillRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+
+            for (let x = 0; x < MAP_WIDTH; x++) {
+
+                for (let y = 0; y < MAP_HEIGHT; y++) {
+
+                    if (exploredTiles[x][y] === 1) {
+
+                        minimapCtx.fillStyle = '#3a5935';
+
+                        minimapCtx.fillRect(x * MINIMAP_SCALE, y * MINIMAP_SCALE, MINIMAP_SCALE, MINIMAP_SCALE);
+
+                    }
+
+                }
+
+            }
+
+            
+
+            for (const id in worldObjects) {
+
+                const obj = worldObjects[id];
+
+                if (obj.y >= DUNGEON_Y_OFFSET) continue;
+
+                const objGridX = Math.floor(obj.x / TILE_SIZE);
+
+                const objGridY = Math.floor(obj.y / TILE_SIZE);
+
+                 if (objGridX >= 0 && objGridX < MAP_WIDTH && objGridY >= 0 && objGridY < MAP_HEIGHT) {
+
+                    if (exploredTiles[objGridX][objGridY] === 1) {
+
+                        if (obj.type === 'DUNGEON_ENTRANCE') {
+
+                            minimapCtx.fillStyle = '#6b7280'; // gray-500
+
+                            minimapCtx.fillRect(objGridX * MINIMAP_SCALE, objGridY * MINIMAP_SCALE, MINIMAP_SCALE, MINIMAP_SCALE);
+
+                        } else if (obj.type === 'CHEST') {
+
+                            minimapCtx.fillStyle = '#ca8a04'; // yellow-600
+
+                            minimapCtx.fillRect(objGridX * MINIMAP_SCALE, objGridY * MINIMAP_SCALE, MINIMAP_SCALE, MINIMAP_SCALE);
+
+                        }
+
+                    }
+
+                 }
+
+            }
+
+            const playerGridX = Math.floor(localPlayer.x / TILE_SIZE);
+
+            const playerGridY = Math.floor(localPlayer.y / TILE_SIZE);
+
+            minimapCtx.fillStyle = '#fef08a'; // yellow-200
+
+            minimapCtx.fillRect(playerGridX * MINIMAP_SCALE, playerGridY * MINIMAP_SCALE, MINIMAP_SCALE * 2, MINIMAP_SCALE * 2);
+
+        }
+
+        // --- UI & Game State Functions ---
+
+        function updateHealthUI() { if (!localPlayer) return; healthBarEl.style.width = `${Math.max(0, (localPlayer.health / localPlayer.maxHealth) * 100)}%`; }
+
+        function gameOver() { stopGameLoop(); gameOverScreen.classList.remove('hidden'); }
+
+        function respawn() { gameOverScreen.classList.add('hidden'); initPlayer(); startGameLoop(); }
+
         
-        // --- Firebase Functions ---
-        async function initFirebase() { try { const firebaseConfig = JSON.parse(__firebase_config); const app = initializeApp(firebaseConfig); db = getFirestore(app); auth = getAuth(app); onAuthStateChanged(auth, async (user) => { if (user) { gameState.userId = user.uid; userIdDisplay.textContent = user.uid; gameState.isAuthReady = true; await joinWorld(); } }); if (typeof __initial_auth_token !== 'undefined') { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } } catch (error) { console.error("CRITICAL: Firebase Initialization failed:", error); loadingText.textContent = `Error connecting.`; loadingErrorText.textContent = error.message; } }
-        async function joinWorld() { loadingText.textContent = "Joining World..."; const worldMetaRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId); const worldDoc = await getDoc(worldMetaRef); if (!worldDoc.exists()) { await generateWorld(); } await initPlayer(); setupListeners(); loadingOverlay.style.display = 'none'; gameLoop(); }
-        async function generateWorld() { const batch = writeBatch(db); const worldMetaRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId); batch.set(worldMetaRef, { name: 'New World', createdAt: serverTimestamp() }); for (let i = 0; i < 200; i++) { const sizeRoll = Math.random(); let type, size, health, woodYield; if (sizeRoll < 0.5) { type = 'TREE_S'; size = TILE_SIZE * 0.7; health = 50; woodYield = 2; } else if (sizeRoll < 0.85) { type = 'TREE_M'; size = TILE_SIZE * 1.0; health = 100; woodYield = 5; } else { type = 'TREE_L'; size = TILE_SIZE * 1.4; health = 150; woodYield = 10; } const objRef = doc(collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "worldObjects")); batch.set(objRef, { type, x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE, size, health, maxHealth: health, woodYield }); } for (let i = 0; i < 100; i++) { const health = 100; const objRef = doc(collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "worldObjects")); batch.set(objRef, { type: 'ROCK', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE, health, maxHealth: health }); } await batch.commit(); }
-        async function initPlayer() { loadingText.textContent = "Loading Character..."; const playerRef = doc(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players", gameState.userId); const playerDoc = await getDoc(playerRef); if (playerDoc.exists()) { localPlayer = playerDoc.data(); } else { const { x, y } = await findSafeSpawn(); localPlayer = { x, y, name: gameState.userId.substring(0, 6), inventory: {}, hotbar: Array(9).fill(null), selectedHotbar: 0 }; await setDoc(playerRef, localPlayer); } nameInputEl.value = localPlayer.name; updateHotbarUI(); renderCraftingUI(); }
-        async function findSafeSpawn() { const objectsQuery = query(collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "worldObjects"), limit(100)); const querySnapshot = await getDocs(objectsQuery); const tempObjects = querySnapshot.docs.map(doc => doc.data()); for (let i = 0; i < 100; i++) { const x = Math.random() * MAP_WIDTH * TILE_SIZE; const y = Math.random() * MAP_HEIGHT * TILE_SIZE; let isSafe = true; for (const obj of tempObjects) { if (Math.hypot(x - obj.x, y - obj.y) < TILE_SIZE * 2) { isSafe = false; break; } } if (isSafe) return { x, y }; } return { x: 100, y: 100 }; }
-        function setupListeners() { gameState.unsubscribes.forEach(unsub => unsub()); gameState.unsubscribes = []; const objectsQuery = query(collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "worldObjects")); const unsubObjects = onSnapshot(objectsQuery, (snapshot) => { snapshot.docChanges().forEach((change) => { const data = change.doc.data(); const id = change.doc.id; if (change.type === "added" || change.type === "modified") { worldObjects[id] = data; } else if (change.type === "removed") { delete worldObjects[id]; } }); }); gameState.unsubscribes.push(unsubObjects); const playersQuery = query(collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "players")); const unsubPlayers = onSnapshot(playersQuery, (snapshot) => { otherPlayers = {}; snapshot.forEach(doc => { if (doc.id !== gameState.userId) { otherPlayers[doc.id] = doc.data(); } else { localPlayer = { ...localPlayer, ...doc.data() }; updateHotbarUI(); renderCraftingUI(); nameInputEl.value = localPlayer.name; } }); }); gameState.unsubscribes.push(unsubPlayers); const chatQuery = query(collection(db, "artifacts", appId, "public", "data", "worlds", gameState.worldId, "chat"), orderBy("timestamp", "desc"), limit(50)); const unsubChat = onSnapshot(chatQuery, (snapshot) => { chatMessagesEl.innerHTML = ''; snapshot.docs.reverse().forEach(doc => { const msg = doc.data(); const p = document.createElement('p'); p.innerHTML = `<strong>${msg.senderName}:</strong> ${msg.text}`; chatMessagesEl.appendChild(p); }); chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }); gameState.unsubscribes.push(unsubChat); }
+
+        function renderAllInventories() { renderCraftingUI(); if (openedChestId) { renderChestUI(); } }
+
+        
+
+        function renderCraftingUI() {
+
+            if (!localPlayer) return;
+
+            const gridSlots = document.querySelectorAll('#crafting-grid .inventory-slot');
+
+            gridSlots.forEach((slot, i) => { const item = craftingGrid[i]; slot.innerHTML = item ? EMOJIS[item] || item : ''; });
+
+            
+
+            const inventoryGrid = document.getElementById('inventory-grid');
+
+            inventoryGrid.innerHTML = '';
+
+            
+
+            const hotbarItems = new Set(localPlayer.hotbar.filter(Boolean));
+
+            const mainInventoryItems = Object.keys(localPlayer.inventory).filter(item => !hotbarItems.has(item) && localPlayer.inventory[item] > 0).sort();
+
+            mainInventoryItems.forEach(item => {
+
+                const count = localPlayer.inventory[item]; const slot = document.createElement('div'); slot.className = 'inventory-slot';
+
+                if (item === selectedInventoryItem) slot.classList.add('selected');
+
+                slot.innerHTML = `${EMOJIS[item] || item}<div class="item-count">${count}</div>`;
+
+                slot.addEventListener('click', () => handleInventoryClick(item));
+
+                inventoryGrid.appendChild(slot);
+
+            });
+
+            const emptySlotCount = 18 - mainInventoryItems.length;
+
+            for (let i = 0; i < emptySlotCount; i++) {
+
+                const slot = document.createElement('div'); slot.className = 'inventory-slot';
+
+                inventoryGrid.appendChild(slot);
+
+            }
+
+        }
+
+        function renderChestUI() {
+
+            const chest = worldObjects[openedChestId]; if (!chest) return;
+
+            const chestGrid = document.getElementById('chest-grid'); chestGrid.innerHTML = '';
+
+            const chestItems = Object.keys(chest.inventory).sort();
+
+            chestItems.forEach(item => {
+
+                 const count = chest.inventory[item];
+
+                 if (count > 0) {
+
+                    const slot = document.createElement('div'); slot.className = 'inventory-slot';
+
+                    slot.innerHTML = `${EMOJIS[item] || item}<div class="item-count">${count}</div>`;
+
+                    slot.addEventListener('click', () => handleChestItemClick(item));
+
+                    chestGrid.appendChild(slot);
+
+                 }
+
+            });
+
+            const emptySlotCount = 27 - chestItems.length;
+
+             for (let i = 0; i < emptySlotCount; i++) {
+
+                const slot = document.createElement('div'); slot.className = 'inventory-slot';
+
+                chestGrid.appendChild(slot);
+
+            }
+
+        }
+
+        function updateHotbarUI() { if (!localPlayer) return; const hotbarPanel = document.getElementById('hotbar'); hotbarPanel.innerHTML = ''; for (let i = 0; i < 9; i++) { const slot = document.createElement('div'); slot.className = 'inventory-slot'; slot.dataset.idx = i; slot.classList.toggle('selected', i === localPlayer.selectedHotbar); const item = localPlayer.hotbar[i]; if (item) { const count = localPlayer.inventory[item] || 0; slot.innerHTML = `${EMOJIS[item] || item}${count > 1 ? `<div class="item-count">${count}</div>` : ''}`; } hotbarPanel.appendChild(slot); } }
+
+        function checkCraftingRecipe() { const outputSlot = document.getElementById('crafting-output'); outputSlot.innerHTML = ''; for (const itemName in CRAFTING_RECIPES) { const recipeInfo = CRAFTING_RECIPES[itemName]; if (JSON.stringify(recipeInfo.recipe) === JSON.stringify(craftingGrid)) { outputSlot.innerHTML = `${EMOJIS[itemName] || itemName}<div class="item-count">${recipeInfo.yields}</div>`; break; } } }
+
+        function showMessage(message, isError = true) { messageBox.className = `fixed top-5 right-5 p-4 rounded-lg shadow-xl transition-opacity duration-300 ${isError ? 'bg-red-500' : 'bg-green-500'} text-white`; messageText.textContent = message; messageBox.classList.remove('hidden'); setTimeout(() => { messageBox.classList.add('hidden'); }, 4000); }
+
+        
+
+        function handleInventoryClick(item) {
+
+            if (openedChestId) {
+
+                const chest = worldObjects[openedChestId];
+
+                if (item && localPlayer.inventory[item] > 0) {
+
+                    localPlayer.inventory[item]--; chest.inventory[item] = (chest.inventory[item] || 0) + 1;
+
+                    if (localPlayer.inventory[item] <= 0) delete localPlayer.inventory[item];
+
+                    renderAllInventories();
+
+                }
+
+            } else { selectedInventoryItem = selectedInventoryItem === item ? null : item; renderCraftingUI(); }
+
+        }
+
+        function handleChestItemClick(item) {
+
+            const chest = worldObjects[openedChestId];
+
+            if (item && chest.inventory[item] > 0) {
+
+                chest.inventory[item]--; localPlayer.inventory[item] = (localPlayer.inventory[item] || 0) + 1;
+
+                if (chest.inventory[item] <= 0) delete chest.inventory[item];
+
+                renderAllInventories();
+
+            }
+
+        }
+
+        
+
+        // --- Event Listeners ---
+
+        function addEventListeners() {
+
+            document.getElementById('crafting-grid').addEventListener('click', (e) => { if (!e.target.closest('.inventory-slot')) return; const slot = e.target.closest('.inventory-slot'); const idx = parseInt(slot.dataset.idx); if (craftingGrid[idx]) { const item = craftingGrid[idx]; localPlayer.inventory[item] = (localPlayer.inventory[item] || 0) + 1; craftingGrid[idx] = null; } else if (selectedInventoryItem && localPlayer.inventory[selectedInventoryItem] > 0) { craftingGrid[idx] = selectedInventoryItem; localPlayer.inventory[selectedInventoryItem]--; if (localPlayer.inventory[selectedInventoryItem] <= 0) { delete localPlayer.inventory[selectedInventoryItem]; selectedInventoryItem = null; } } renderCraftingUI(); checkCraftingRecipe(); });
+
+            document.getElementById('crafting-output').addEventListener('click', () => { for (const itemName in CRAFTING_RECIPES) { const recipeInfo = CRAFTING_RECIPES[itemName]; if (JSON.stringify(recipeInfo.recipe) === JSON.stringify(craftingGrid)) { localPlayer.inventory[itemName] = (localPlayer.inventory[itemName] || 0) + recipeInfo.yields; craftingGrid = Array(9).fill(null); renderCraftingUI(); checkCraftingRecipe(); return; } } });
+
+            document.getElementById('hotbar').addEventListener('click', e => {
+
+                if (!e.target.closest('.inventory-slot')) return;
+
+                const slot = e.target.closest('.inventory-slot');
+
+                const idx = parseInt(slot.dataset.idx);
+
+                if (selectedInventoryItem && !localPlayer.hotbar.includes(selectedInventoryItem)) { localPlayer.hotbar[idx] = selectedInventoryItem; selectedInventoryItem = null; renderCraftingUI(); updateHotbarUI(); }
+
+            });
+
+            canvas.addEventListener('mousemove', e => { const rect = canvas.getBoundingClientRect(); mouse.x = e.clientX - rect.left; mouse.y = e.clientY - rect.top; });
+
+            canvas.addEventListener('click', e => {
+
+                if (!localPlayer || localPlayer.health <= 0) return;
+
+                if (placementPreview && placementPreview.isValid) {
+
+                    const item = placementPreview.type;
+
+                    if ((localPlayer.inventory[item] || 0) > 0) {
+
+                         const newId = `obj_${Date.now()}`; let newObject;
+
+                         if (item === 'WALL') { newObject = { type: 'WALL', x: placementPreview.x, y: placementPreview.y, health: 150, maxHealth: 150 }; } 
+
+                         else if (item === 'SAPLING') { const health = 50; newObject = { type: 'TREE_S', x: placementPreview.x, y: placementPreview.y, size: TILE_SIZE * 0.7, health, maxHealth: health, woodYield: 2 }; }
+
+                         else if (item === 'CHEST') { newObject = { type: 'CHEST', x: placementPreview.x, y: placementPreview.y, inventory: {} }; }
+
+                         else if (item === 'TORCH') { newObject = { type: 'TORCH', x: placementPreview.x, y: placementPreview.y }; }
+
+                         worldObjects[newId] = newObject; localPlayer.inventory[item]--; updateHotbarUI(); renderCraftingUI(); return;
+
+                    }
+
+                }
+
+                
+
+                const worldX = mouse.x + camera.x; const worldY = mouse.y + camera.y;
+
+                for (const id in worldObjects) {
+
+                    const obj = worldObjects[id];
+
+                    if (Math.hypot(worldX - obj.x, worldY - obj.y) < TILE_SIZE * 0.8 && Math.hypot(localPlayer.x - obj.x, localPlayer.y - obj.y) < TILE_SIZE * 2) {
+
+                        if (obj.type === 'CHEST') {
+
+                            openedChestId = id; renderChestUI(); chestModal.classList.remove('hidden'); craftingInventoryPanel.classList.remove('hidden'); return;
+
+                        }
+
+                        if (obj.type === 'DUNGEON_ENTRANCE' && !localPlayer.isInDungeon) {
+
+                            localPlayer.overworldPosition = { x: localPlayer.x, y: localPlayer.y };
+
+                            const exit = Object.values(worldObjects).find(o => o.type === 'DUNGEON_EXIT');
+
+                            if (exit) { localPlayer.x = exit.x; localPlayer.y = exit.y + TILE_SIZE; }
+
+                            localPlayer.isInDungeon = true; return;
+
+                        }
+
+                        if (obj.type === 'DUNGEON_EXIT' && localPlayer.isInDungeon) {
+
+                            localPlayer.x = localPlayer.overworldPosition.x; localPlayer.y = localPlayer.overworldPosition.y; localPlayer.isInDungeon = false; localPlayer.overworldPosition = null; return;
+
+                        }
+
+                    }
+
+                }
+
+            });
+
+            window.addEventListener('keydown', e => {
+
+                const key = e.key.toLowerCase();
+
+                if (document.activeElement.tagName.toLowerCase() === 'input') return;
+
+                
+
+                if (key === 'g') {
+
+                    godMenu.classList.toggle('hidden');
+
+                }
+
+                keysPressed[key] = true;
+
+                if (!keysPressed[key]) { keyPressStartTime[key] = performance.now(); }
+
+                if (key === 'e') { if (openedChestId) return; e.preventDefault(); craftingInventoryPanel.classList.toggle('hidden'); recipeBookModal.classList.add('hidden'); }
+
+                if (!isNaN(key) && key >= 1 && key <= 9 && localPlayer) { localPlayer.selectedHotbar = parseInt(key) - 1; updateHotbarUI(); }
+
+                if (key === ' ' || key === 'spacebar') {
+
+                    e.preventDefault(); if (!localPlayer || localPlayer.health <= 0) return;
+
+                    
+
+                    const selectedItem = localPlayer.hotbar[localPlayer.selectedHotbar];
+
+                    
+
+                    if (selectedItem === 'SWORD') {
+
+                        localPlayer.attackAnimation = { active: true, timer: 150 };
+
+                        const ATTACK_RANGE = TILE_SIZE * 1.5; const ATTACK_WIDTH = TILE_SIZE * 1.5; const SWORD_DAMAGE = 25;
+
+                        for (const id in worldObjects) {
+
+                            const obj = worldObjects[id];
+
+                            if (obj.type === 'ENEMY' || obj.type === 'SLIME' || obj.type === 'SPORE_SHROOM' || obj.type === 'COW') {
+
+                                let inRange = false;
+
+                                switch (localPlayer.facing) {
+
+                                    case 'right': if (obj.x > localPlayer.x && obj.x < localPlayer.x + ATTACK_RANGE && Math.abs(obj.y - localPlayer.y) < ATTACK_WIDTH / 2) inRange = true; break;
+
+                                    case 'left': if (obj.x < localPlayer.x && obj.x > localPlayer.x - ATTACK_RANGE && Math.abs(obj.y - localPlayer.y) < ATTACK_WIDTH / 2) inRange = true; break;
+
+                                    case 'down': if (obj.y > localPlayer.y && obj.y < localPlayer.y + ATTACK_RANGE && Math.abs(obj.x - localPlayer.x) < ATTACK_WIDTH / 2) inRange = true; break;
+
+                                    case 'up': if (obj.y < localPlayer.y && obj.y > localPlayer.y - ATTACK_RANGE && Math.abs(obj.x - localPlayer.x) < ATTACK_WIDTH / 2) inRange = true; break;
+
+                                }
+
+                                if (inRange) {
+
+                                    obj.health -= SWORD_DAMAGE; 
+
+                                    if (obj.health <= 0) { 
+
+                                        if (obj.type === 'COW') {
+
+                                            localPlayer.inventory['BEEF'] = (localPlayer.inventory['BEEF'] || 0) + 2;
+
+                                            renderAllInventories();
+
+                                        }
+
+                                        delete worldObjects[id]; 
+
+                                    }
+
+                                }
+
+                            }
+
+                        }
+
+                    } else {
+
+                        let interacted = false;
+
+                        // Prioritize attacking mobs
+
+                        for (const id in worldObjects) {
+
+                            const obj = worldObjects[id];
+
+                            if (obj.type === 'ENEMY' || obj.type === 'SLIME' || obj.type === 'SPORE_SHROOM' || obj.type === 'COW') {
+
+                                const distance = Math.hypot(obj.x - localPlayer.x, obj.y - localPlayer.y);
+
+                                if (distance < TILE_SIZE * 1.5) {
+
+                                    obj.health -= 5; // Punch damage
+
+                                    if (obj.health <= 0) {
+
+                                        if (obj.type === 'COW') {
+
+                                            localPlayer.inventory['BEEF'] = (localPlayer.inventory['BEEF'] || 0) + 1; // Less beef for punching
+
+                                            renderAllInventories();
+
+                                        }
+
+                                        delete worldObjects[id];
+
+                                    }
+
+                                    interacted = true;
+
+                                    break; // Only attack one mob at a time
+
+                                }
+
+                            }
+
+                        }
+
+                        // If no mob was attacked, try to harvest a resource
+
+                        if (!interacted) {
+
+                            let closestObject = null; let closestObjectId = null; let minDistance = TILE_SIZE * 1.5;
+
+                            for (const id in worldObjects) {
+
+                                const obj = worldObjects[id];
+
+                                if (obj.type.startsWith('TREE') || obj.type === 'ROCK') { 
+
+                                    const distance = Math.hypot(obj.x - localPlayer.x, obj.y - localPlayer.y); 
+
+                                    if (distance < minDistance) { 
+
+                                        minDistance = distance; closestObject = obj; closestObjectId = id; 
+
+                                    } 
+
+                                }
+
+                            }
+
+                            if (closestObject) {
+
+                                let damage = 13;
+
+                                if ((closestObject.type.startsWith('TREE') && selectedItem === 'AXE') || (closestObject.type.startsWith('ROCK') && selectedItem === 'PICKAXE')) { damage = 50; }
+
+                                closestObject.health -= damage;
+
+                                if (closestObject.health <= 0) {
+
+                                    let resourceToGain = null; let amountToGain = 0;
+
+                                    if (closestObject.type.startsWith('TREE')) { resourceToGain = 'WOOD'; amountToGain = selectedItem === 'AXE' ? closestObject.woodYield : 1; if (Math.random() < 0.25) { localPlayer.inventory['SAPLING'] = (localPlayer.inventory['SAPLING'] || 0) + 1; showMessage("You found a sapling!", false); } } 
+
+                                    else if (closestObject.type === 'ROCK') { resourceToGain = 'STONE'; amountToGain = selectedItem === 'PICKAXE' ? 5 : 1; }
+
+                                    if (resourceToGain) { localPlayer.inventory[resourceToGain] = (localPlayer.inventory[resourceToGain] || 0) + amountToGain; }
+
+                                    delete worldObjects[closestObjectId];
+
+                                }
+
+                                updateHotbarUI(); renderCraftingUI();
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            });
+
+            window.addEventListener('keyup', e => { const key = e.key.toLowerCase(); keysPressed[key] = false; delete keyPressStartTime[key]; });
+
+            window.addEventListener('resize', resizeCanvas);
+
+            recipeBookBtn.addEventListener('click', () => recipeBookModal.classList.remove('hidden'));
+
+            closeRecipeBookBtn.addEventListener('click', () => recipeBookModal.classList.add('hidden'));
+
+            respawnBtn.addEventListener('click', respawn);
+
+            closeChestBtn.addEventListener('click', () => { openedChestId = null; chestModal.classList.add('hidden'); });
+
+            // God Menu Listeners
+
+            speedSlider.addEventListener('input', (e) => {
+
+                godMode.speed = parseInt(e.target.value);
+
+                speedValue.textContent = godMode.speed;
+
+            });
+
+            noclipCheckbox.addEventListener('change', (e) => {
+
+                godMode.noclip = e.target.checked;
+
+            });
+
+            invincibleCheckbox.addEventListener('change', (e) => {
+
+                godMode.invincible = e.target.checked;
+
+            });
+
+            revealMapBtn.addEventListener('click', () => {
+
+                for (let x = 0; x < MAP_WIDTH; x++) {
+
+                    for (let y = 0; y < MAP_HEIGHT; y++) {
+
+                        exploredTiles[x][y] = 1;
+
+                    }
+
+                }
+
+                showMessage("Map revealed!", false);
+
+            });
+
+        }
+
+        // --- Recipe Book Logic ---
+
+        function populateRecipeBook() {
+
+            recipeListEl.innerHTML = '';
+
+            for (const itemName in CRAFTING_RECIPES) {
+
+                const { recipe, yields } = CRAFTING_RECIPES[itemName];
+
+                const entryEl = document.createElement('div'); entryEl.className = 'recipe-entry';
+
+                const gridEl = document.createElement('div'); gridEl.className = 'recipe-grid';
+
+                recipe.forEach(item => { const slotEl = document.createElement('div'); slotEl.className = 'inventory-slot'; slotEl.innerHTML = item ? EMOJIS[item] : ''; gridEl.appendChild(slotEl); });
+
+                const resultEl = document.createElement('div'); resultEl.className = 'recipe-result'; resultEl.innerHTML = `<span>-></span><div class="inventory-slot">${EMOJIS[itemName]}</div><span>x${yields}</span>`;
+
+                entryEl.appendChild(gridEl); entryEl.appendChild(resultEl); recipeListEl.appendChild(entryEl);
+
+            }
+
+        }
+
+        
+
+        function initializeMinimap() {
+
+            minimapCanvas.width = MAP_WIDTH * MINIMAP_SCALE;
+
+            minimapCanvas.height = MAP_HEIGHT * MINIMAP_SCALE;
+
+            exploredTiles = Array(MAP_WIDTH).fill(null).map(() => Array(MAP_HEIGHT).fill(0));
+
+        }
+
+        function setupTeleportButtons() {
+
+            teleportLocationsDiv.innerHTML = '<h4 class="text-xs mt-2 mb-1">Teleport:</h4>'; // Clear old buttons
+
+            let dungeonCount = 0;
+
+            for (const id in worldObjects) {
+
+                if (worldObjects[id].type === 'DUNGEON_ENTRANCE') {
+
+                    dungeonCount++;
+
+                    const entrance = worldObjects[id];
+
+                    const btn = document.createElement('button');
+
+                    btn.textContent = `Dungeon ${dungeonCount}`;
+
+                    btn.onclick = () => {
+
+                        localPlayer.x = entrance.x;
+
+                        localPlayer.y = entrance.y;
+
+                        showMessage(`Teleported to Dungeon ${dungeonCount}`, false);
+
+                    };
+
+                    teleportLocationsDiv.appendChild(btn);
+
+                }
+
+            }
+
+        }
+
+        function loadAssets() {
+
+            const grassImg = new Image();
+
+            grassImg.src = `data:image/webp;base64,UklGRlIAAABXRUJQVlA4IEoAAADwAgCdASo8ADwAPm0skkWkIqGYBABABsSxAE6ADL/Un6/dX9/53/1f/h/3D/6H+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/v//if7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4f7h/uH+4A`;
+
+            grassImg.onload = () => {
+
+                grassPattern = ctx.createPattern(grassImg, 'repeat');
+
+            };
+
+        }
+
+        // --- Local Game Setup ---
+
+        function generateWorld() {
+
+            worldObjects = {};
+
+            // Overworld
+
+            for (let i = 0; i < 200; i++) { const id = `obj_${i}`; const sizeRoll = Math.random(); let type, size, health, woodYield; if (sizeRoll < 0.5) { type = 'TREE_S'; size = TILE_SIZE * 0.7; health = 50; woodYield = 2; } else if (sizeRoll < 0.85) { type = 'TREE_M'; size = TILE_SIZE * 1.0; health = 100; woodYield = 5; } else { type = 'TREE_L'; size = TILE_SIZE * 1.4; health = 150; woodYield = 10; } worldObjects[id] = { type, x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE, size, health, maxHealth: health, woodYield }; }
+
+            for (let i = 200; i < 300; i++) { const id = `obj_${i}`; const health = 100; worldObjects[id] = { type: 'ROCK', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE, health, maxHealth: health }; }
+
+            for (let i = 300; i < 305; i++) { const id = `obj_${i}`; worldObjects[id] = { type: 'DUNGEON_ENTRANCE', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE }; }
+
+            for (let i = 305; i < 315; i++) { const id = `obj_${i}`; worldObjects[id] = { type: 'COW', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE, size: TILE_SIZE * 1.2, health: 30, maxHealth: 30, wanderTimer: 0 }; }
+
+            // Dungeon
+
+            const dungeonWidth = 80; const dungeonHeight = 60;
+
+            const startX = (MAP_WIDTH * TILE_SIZE) / 2 - (dungeonWidth * TILE_SIZE) / 2;
+
+            const startY = DUNGEON_Y_OFFSET;
+
+            worldObjects['dungeon_exit'] = { type: 'DUNGEON_EXIT', x: startX + TILE_SIZE, y: startY + TILE_SIZE };
+
+            for(let x = 0; x < dungeonWidth; x++) {
+
+                for(let y = 0; y < dungeonHeight; y++) {
+
+                    const worldX = startX + x * TILE_SIZE; const worldY = startY + y * TILE_SIZE;
+
+                    if (x === 0 || x === dungeonWidth - 1 || y === 0 || y === dungeonHeight - 1 || (Math.random() < 0.3 && (x > 2 || y > 2))) {
+
+                        worldObjects[`dungeon_wall_${x}_${y}`] = { type: 'DUNGEON_WALL', x: worldX, y: worldY };
+
+                    } else if (Math.random() < 0.05) { // Sparsely add some minable rocks
+
+                         const health = 100; 
+
+                         worldObjects[`dungeon_rock_${x}_${y}`] = { type: 'ROCK', x: worldX, y: worldY, health, maxHealth: health };
+
+                    }
+
+                }
+
+            }
+
+            for (let i = 0; i < 15; i++) { const id = `dungeon_enemy_${i}`; worldObjects[id] = { type: 'ENEMY', x: startX + Math.random() * dungeonWidth * TILE_SIZE, y: startY + Math.random() * dungeonHeight * TILE_SIZE, size: TILE_SIZE, wanderTimer: 0, health: 100, maxHealth: 100 }; }
+
+            for (let i = 0; i < 20; i++) { const id = `dungeon_slime_${i}`; worldObjects[id] = { type: 'SLIME', x: startX + Math.random() * dungeonWidth * TILE_SIZE, y: startY + Math.random() * dungeonHeight * TILE_SIZE, size: TILE_SIZE * 0.7, wanderTimer: 0, jumpState: 'idle', z: 0, vz: 0, jumpCooldown: 2000, health: 75, maxHealth: 75 }; }
+
+            for (let i = 0; i < 10; i++) { const id = `dungeon_shroom_${i}`; worldObjects[id] = { type: 'SPORE_SHROOM', x: startX + Math.random() * dungeonWidth * TILE_SIZE, y: startY + Math.random() * dungeonHeight * TILE_SIZE, size: TILE_SIZE * 0.9, attackCooldown: 3000, health: 50, maxHealth: 50 }; }
+
+            
+
+            setupTeleportButtons();
+
+        }
+
+        
+
+        function initPlayer() {
+
+            const spawnX = (MAP_WIDTH * TILE_SIZE) / 2;
+
+            const spawnY = (MAP_HEIGHT * TILE_SIZE) / 2;
+
+            const inventory = localPlayer ? localPlayer.inventory : {WOOD: 10, STONE: 5};
+
+            const hotbar = localPlayer ? localPlayer.hotbar : Array(9).fill(null);
+
+            
+
+            localPlayer = { x: spawnX, y: spawnY, name: "Player", inventory, hotbar, selectedHotbar: 0, health: 100, maxHealth: 100, lastDamageTime: 0, facing: 'right', isInDungeon: false, overworldPosition: null }; 
+
+            updateHealthUI();
+
+            updateHotbarUI(); 
+
+            renderCraftingUI(); 
+
+        }
 
         function main() {
+
             resizeCanvas();
-            const urlParams = new URLSearchParams(window.location.search);
-            let worldParam = urlParams.get('world');
-            if (!worldParam) {
-                worldParam = `world_${Math.random().toString(36).substr(2, 9)}`;
-            }
-            gameState.worldId = worldParam;
-            initFirebase();
+
+            loadAssets();
+
+            generateWorld();
+
+            initPlayer();
+
+            initializeMinimap();
+
+            populateRecipeBook();
+
+            addEventListeners();
+
+            startGameLoop();
+
         }
+
         main();
+
     </script>
+
 </body>
+
 </html>
-
-
