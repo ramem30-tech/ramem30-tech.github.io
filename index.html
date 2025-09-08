@@ -179,9 +179,11 @@
         const keysPressed = {}; 
         const camera = { x: 0, y: 0 };
         const gameState = { worldId: null, userId: null, channel: null };
-        
-        const EMOJIS = { PLAYER: '◉‿◉', OTHER_PLAYER: '•̀_•́', AXE: '🪓', PICKAXE: '⛏️', SWORD: '⚔️', WALL: '🧱', TREE_S: '🌳', ROCK: '🪨', WOOD: '🪵', STONE: '🪨'};
         let animationFrameId;
+
+        const EMOJIS = { PLAYER: '◉‿◉', OTHER_PLAYER: '•̀_•́', AXE: '🪓', PICKAXE: '⛏️', SWORD: '⚔️', WALL: '🧱', TREE_S: '🌳', ROCK: '🪨', WOOD: '🪵', STONE: '🪨'};
+        let craftingGrid = Array(9).fill(null);
+        let selectedInventoryItem = null;
 
         // --- Main Game Functions ---
         function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -194,6 +196,7 @@
         }
 
         function update() {
+            if (!localPlayer) return;
             const speed = 4; let dx = 0; let dy = 0;
             if (keysPressed['w'] || keysPressed['arrowup']) dy -= 1; 
             if (keysPressed['s'] || keysPressed['arrowdown']) dy += 1;
@@ -205,17 +208,38 @@
                 const velY = (dy / magnitude) * speed;
                 
                 localPlayer.x += velX;
+                handleCollision(localPlayer, 'x', velX);
                 localPlayer.y += velY;
+                handleCollision(localPlayer, 'y', velY);
 
-                supabase.from('players').upsert({ 
-                    id: gameState.userId, 
-                    world_id: gameState.worldId,
-                    x: localPlayer.x, 
-                    y: localPlayer.y 
-                }).then();
+                gameState.channel.track({
+                    x: localPlayer.x,
+                    y: localPlayer.y,
+                    name: localPlayer.name
+                });
             }
             camera.x = localPlayer.x - canvas.width / 2; 
             camera.y = localPlayer.y - canvas.height / 2;
+        }
+
+        function handleCollision(player, axis, velocity) {
+            const playerBounds = { x: player.x - PLAYER_SIZE / 2, y: player.y - PLAYER_SIZE / 2, width: PLAYER_SIZE, height: PLAYER_SIZE };
+            for (const id in worldObjects) {
+                const obj = worldObjects[id];
+                 if (obj.type === 'WALL' || obj.type.startsWith('TREE') || obj.type === 'ROCK') {
+                    const objSize = TILE_SIZE;
+                    const objBounds = { x: obj.x - objSize / 2, y: obj.y - objSize / 2, width: objSize, height: objSize };
+                    if (playerBounds.x < objBounds.x + objBounds.width && playerBounds.x + playerBounds.width > objBounds.x && playerBounds.y < objBounds.y + objBounds.height && playerBounds.y + playerBounds.height > objBounds.y) {
+                        if (axis === 'x') {
+                            if (velocity > 0) player.x = objBounds.x - playerBounds.width / 2;
+                            else if (velocity < 0) player.x = objBounds.x + objBounds.width + playerBounds.width / 2;
+                        } else { // axis === 'y'
+                            if (velocity > 0) player.y = objBounds.y - playerBounds.height / 2;
+                            else if (velocity < 0) player.y = objBounds.y + objBounds.height + playerBounds.height / 2;
+                        }
+                    }
+                }
+            }
         }
 
         function render() {
@@ -232,7 +256,8 @@
             
             for (const id in otherPlayers) {
                 if (id === gameState.userId) continue; 
-                const player = otherPlayers[id]; 
+                const player = otherPlayers[id][0]; // Presence sends an array
+                if (!player) continue;
                 ctx.fillStyle = 'white'; 
                 ctx.font = '16px sans-serif'; 
                 ctx.textAlign = 'center'; 
@@ -252,7 +277,6 @@
 
         // --- Supabase Functions ---
         async function initSupabase() { 
-            // IMPORTANT: Replace these with your own Supabase project details
             const SUPABASE_URL = 'https://quunhxlqiowbjvzyigyg.supabase.co'; 
             const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1dW5oeGxxaW93Ymp2enlpZ3lnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDk4NzcsImV4cCI6MjA3MjkyNTg3N30.SmNHkzK0XHxu10k3fTgc95tzr3MrVv723n5T4USA7jo';
 
@@ -264,7 +288,6 @@
 
             try {
                 supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                // Get or create a persistent user ID
                 let userId = localStorage.getItem('forest-foragers-userId');
                 if (!userId) {
                     userId = `user_${Math.random().toString(36).substr(2, 9)}`;
@@ -296,42 +319,68 @@
 
         async function generateWorld() { 
             let newObjects = [];
-            for (let i = 0; i < 200; i++) { newObjects.push({ world_id: gameState.worldId, type: 'TREE_S', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE }); } 
-            for (let i = 0; i < 100; i++) { newObjects.push({ world_id: gameState.worldId, type: 'ROCK', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE }); } 
+            for (let i = 0; i < 200; i++) { newObjects.push({ world_id: gameState.worldId, type: 'TREE_S', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE, health: 50 }); } 
+            for (let i = 0; i < 100; i++) { newObjects.push({ world_id: gameState.worldId, type: 'ROCK', x: Math.random() * MAP_WIDTH * TILE_SIZE, y: Math.random() * MAP_HEIGHT * TILE_SIZE, health: 100 }); } 
             const { error } = await supabase.from('world_objects').insert(newObjects);
             if(error) console.error("Error generating world:", error);
         }
 
-        async function initPlayer() { 
-            loadingText.textContent = "Spawning..."; 
-            const { data: playerData, error } = await supabase.from('players').select('*').eq('id', gameState.userId).eq('world_id', gameState.worldId).maybeSingle();
-            if (error) throw error;
-            if (playerData) { 
-                localPlayer = playerData; 
-            } else { 
-                const spawnX = (MAP_WIDTH / 2) * TILE_SIZE; 
-                const spawnY = (MAP_HEIGHT / 2) * TILE_SIZE; 
-                localPlayer = { id: gameState.userId, world_id: gameState.worldId, x: spawnX, y: spawnY, name: `Player-${gameState.userId.substring(5, 9)}` }; 
-                const { error: insertError } = await supabase.from('players').insert(localPlayer);
-                if (insertError) throw insertError;
+        async function findSafeSpawn(objects) {
+             for (let i = 0; i < 100; i++) { 
+                const x = Math.random() * MAP_WIDTH * TILE_SIZE; 
+                const y = Math.random() * MAP_HEIGHT * TILE_SIZE; 
+                let isSafe = true; 
+                for (const obj of objects) { 
+                    if (Math.hypot(x - obj.x, y - obj.y) < TILE_SIZE * 2) { 
+                        isSafe = false; 
+                        break; 
+                    } 
+                } 
+                if (isSafe) return { x, y }; 
             } 
+            return { x: 100, y: 100 }; // Fallback
+        }
+
+        async function initPlayer() { 
+            loadingText.textContent = "Finding spawn point..."; 
+            const { data: objects, error: objError } = await supabase.from('world_objects').select('x, y').eq('world_id', gameState.worldId);
+            if (objError) throw objError;
+
+            const { x: spawnX, y: spawnY } = await findSafeSpawn(objects);
+            
+            localPlayer = { 
+                id: gameState.userId, 
+                world_id: gameState.worldId, 
+                x: spawnX, 
+                y: spawnY, 
+                name: `Player-${gameState.userId.substring(5, 9)}`,
+                health: 100,
+                maxHealth: 100,
+                inventory: { WOOD: 10, STONE: 5 },
+                hotbar: Array(9).fill(null),
+                selectedHotbar: 0
+            }; 
+            
+            const { error: insertError } = await supabase.from('players').upsert(localPlayer);
+            if (insertError) throw insertError;
+            
             nameInputEl.value = localPlayer.name; 
+            updateUI();
         }
         
         function setupListeners() {
             if (gameState.channel) {
                 supabase.removeChannel(gameState.channel);
             }
-            gameState.channel = supabase.channel(`world-${gameState.worldId}`);
+            gameState.channel = supabase.channel(`world-${gameState.worldId}`, {
+                config: { presence: { key: gameState.userId } }
+            });
 
             gameState.channel
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, payload => {
-                    const updatedPlayer = payload.new;
-                    if (updatedPlayer.id === gameState.userId) {
-                        localPlayer = { ...localPlayer, ...updatedPlayer };
-                    } else {
-                        otherPlayers[updatedPlayer.id] = updatedPlayer;
-                    }
+                .on('presence', { event: 'sync' }, () => {
+                    const state = gameState.channel.presenceState();
+                    otherPlayers = {...state};
+                    delete otherPlayers[gameState.userId];
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'world_objects' }, payload => {
                      if(payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -347,21 +396,30 @@
                     chatMessagesEl.appendChild(p);
                     chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
                 })
-                .subscribe();
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await gameState.channel.track({
+                            x: localPlayer.x,
+                            y: localPlayer.y,
+                            name: localPlayer.name
+                        });
+                    }
+                });
 
             // Initial fetch of data
             supabase.from('world_objects').select('*').eq('world_id', gameState.worldId).then(({data, error}) => { if(!error) data.forEach(obj => worldObjects[obj.id] = obj); });
-            supabase.from('players').select('*').eq('world_id', gameState.worldId).then(({data, error}) => { if(!error) data.forEach(p => { if(p.id !== gameState.userId) otherPlayers[p.id] = p; }); });
         }
         
         // --- Event Handlers ---
+        function updateUI() { /* ... */ }
+
         function addEventListeners() {
              window.addEventListener('keydown', e => { keysPressed[e.key.toLowerCase()] = true; });
              window.addEventListener('keyup', e => { keysPressed[e.key.toLowerCase()] = false; });
              setNameBtnEl.addEventListener('click', () => { 
                 if (localPlayer && nameInputEl.value) { 
                     localPlayer.name = nameInputEl.value; 
-                    supabase.from('players').upsert({ id: gameState.userId, world_id: gameState.worldId, name: localPlayer.name }).then(); 
+                    gameState.channel.track({ name: localPlayer.name });
                 } 
             });
              chatInputEl.addEventListener('keydown', (e) => { 
@@ -371,6 +429,34 @@
                     chatInputEl.value = ''; 
                 } 
             });
+             canvas.addEventListener('click', async e => {
+                if (!localPlayer) return;
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left + camera.x;
+                const clickY = e.clientY - rect.top + camera.y;
+
+                let closestObject = null;
+                let minDistance = TILE_SIZE * 1.5;
+                for (const id in worldObjects) {
+                    const obj = worldObjects[id];
+                    if (Math.hypot(obj.x - localPlayer.x, obj.y - localPlayer.y) < minDistance &&
+                        Math.hypot(obj.x - clickX, obj.y - clickY) < TILE_SIZE / 2) 
+                    {
+                        closestObject = { id, ...obj };
+                        minDistance = Math.hypot(obj.x - localPlayer.x, obj.y - localPlayer.y);
+                    }
+                }
+
+                if (closestObject) {
+                    const newHealth = closestObject.health - 25; // Simple damage
+                    if (newHealth > 0) {
+                        await supabase.from('world_objects').update({ health: newHealth }).eq('id', closestObject.id);
+                    } else {
+                        await supabase.from('world_objects').delete().eq('id', closestObject.id);
+                        // Add item to inventory locally for now
+                    }
+                }
+             });
              window.addEventListener('resize', resizeCanvas);
         }
 
@@ -380,6 +466,7 @@
             let worldParam = urlParams.get('world');
             if (!worldParam) {
                 worldParam = `world_${Math.random().toString(36).substr(2, 9)}`;
+                window.history.replaceState({}, '', `${window.location.pathname}?world=${worldParam}`);
             }
             gameState.worldId = worldParam;
             initSupabase();
