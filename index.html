@@ -253,8 +253,8 @@
         // --- Supabase Functions ---
         async function initSupabase() { 
             // IMPORTANT: Replace these with your own Supabase project details
-            const SUPABASE_URL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1dW5oeGxxaW93Ymp2enlpZ3lnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDk4NzcsImV4cCI6MjA3MjkyNTg3N30.SmNHkzK0XHxu10k3fTgc95tzr3MrVv723n5T4USA7jo'; 
-            const SUPABASE_ANON_KEY = 'https://quunhxlqiowbjvzyigyg.supabase.co';
+            const SUPABASE_URL = 'https://quunhxlqiowbjvzyigyg.supabase.co'; 
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1dW5oeGxxaW93Ymp2enlpZ3lnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNDk4NzcsImV4cCI6MjA3MjkyNTg3N30.SmNHkzK0XHxu10k3fTgc95tzr3MrVv723n5T4USA7jo';
 
              if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
                 loadingText.textContent = `Setup Required!`; 
@@ -389,24 +389,4 @@
     </script>
 </body>
 </html>
-```
 
-### ⚠️ Important Next Steps:
-
-Because we're using a new backend service, you'll need to do a quick one-time setup on the Supabase website to get your database ready.
-
-1.  **Create a Supabase Project:**
-    * Go to [supabase.com](https://supabase.com) and create a free account.
-    * Create a new project. You can name it "Forest Foragers."
-
-2.  **Get Your Project Keys:**
-    * Inside your new project, go to the "Project Settings" (the gear icon).
-    * Click on "API" in the side menu.
-    * You will see a **URL** and an **`anon` public key**. You need to copy both of these.
-
-3.  **Update the Code:**
-    * In the `forest_foragers_supabase.html` file, find these two lines near the top of the `<script>` tag:
-        ```javascript
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL'; 
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-        
